@@ -45,7 +45,7 @@ export default function App() {
 
     try {
       // Send message to FastAPI backend
-      const response = await fetch("http://localhost:8000/chat", {
+      const response = await fetch("https://telecom-ai-agent.onrender.com/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage })
@@ -78,7 +78,7 @@ export default function App() {
   // Reset conversation
   const resetChat = async () => {
     try {
-      await fetch("http://localhost:8000/reset", { method: "POST" });
+      await fetch("https://telecom-ai-agent.onrender.com/reset", { method: "POST" });
     } catch (error) {
       console.error("Reset failed:", error);
     }
