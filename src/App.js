@@ -2,49 +2,54 @@ import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User } from "lucide-react";
 import "./App.css";
 
-// The main chat component
-export default function App() {
+// Suggested questions shown at the start
+const SUGGESTED_QUESTIONS = [
+  "What is the refund policy?",
+  "What data plans do you offer?",
+  "What is 5G technology?",
+  "How does international roaming work?"
+];
 
-  // messages — list of all chat messages
-  // Each message has: { role: "user" or "agent", text: "..." }
+// Map tool names to display labels and emojis
+const TOOL_LABELS = {
+  search_policy: { emoji: "📋", label: "Searched policy" },
+  search_wikipedia: { emoji: "🌐", label: "Searched Wikipedia" }
+};
+
+export default function App() {
   const [messages, setMessages] = useState([
     {
       role: "agent",
-      text: "Hello! I'm your Deutsche Telekom support assistant. How can I help you today?"
+      text: "Hello! I'm your Deutsche Telekom support assistant. How can I help you today?",
+      tools_used: []
+    },
+    {
+      role: "agent",
+      text: "⚠️ Note: The server may take 2-3 minutes to wake up on your first message. This is a one-time delay — all following messages will be fast!",
+      tools_used: []
     }
   ]);
 
-  // input — what the user is currently typing
   const [input, setInput] = useState("");
-
-  // loading — true when waiting for agent response
-  // Used to show the typing indicator
   const [loading, setLoading] = useState(false);
-
-  // messagesEndRef — a reference to the bottom of the chat
-  // Used to auto-scroll when new messages arrive
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const messagesEndRef = useRef(null);
 
-  // Auto-scroll to bottom whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // sendMessage — called when user clicks Send or presses Enter
-  const sendMessage = async () => {
+  const sendMessage = async (text) => {
+    const userMessage = (text || input).trim();
+    if (!userMessage || loading) return;
 
-    // Don't send empty messages or while waiting for response
-    if (!input.trim() || loading) return;
-
-    const userMessage = input.trim();
-
-    // Add user message to chat immediately
-    setMessages(prev => [...prev, { role: "user", text: userMessage }]);
+    // Hide suggestions after first message
+    setShowSuggestions(false);
+    setMessages(prev => [...prev, { role: "user", text: userMessage, tools_used: [] }]);
     setInput("");
     setLoading(true);
 
     try {
-      // Send message to FastAPI backend
       const response = await fetch("https://telecom-ai-agent.onrender.com/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -53,21 +58,23 @@ export default function App() {
 
       const data = await response.json();
 
-      // Add agent response to chat
-      setMessages(prev => [...prev, { role: "agent", text: data.response }]);
-
-    } catch (error) {
-      // Show error message if backend is unreachable
       setMessages(prev => [...prev, {
         role: "agent",
-        text: "Sorry, I'm having trouble connecting. Please make sure the server is running."
+        text: data.response,
+        tools_used: data.tools_used || []
+      }]);
+
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        role: "agent",
+        text: "Sorry, I'm having trouble connecting. Please make sure the server is running.",
+        tools_used: []
       }]);
     }
 
     setLoading(false);
   };
 
-  // Handle Enter key press in input field
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -75,7 +82,6 @@ export default function App() {
     }
   };
 
-  // Reset conversation
   const resetChat = async () => {
     try {
       await fetch("https://telecom-ai-agent.onrender.com/reset", { method: "POST" });
@@ -84,8 +90,10 @@ export default function App() {
     }
     setMessages([{
       role: "agent",
-      text: "Hello! I'm your Deutsche Telekom support assistant. How can I help you today?"
+      text: "Hello! I'm your Deutsche Telekom support assistant. How can I help you today?",
+      tools_used: []
     }]);
+    setShowSuggestions(true);
   };
 
   return (
@@ -114,19 +122,29 @@ export default function App() {
             key={index}
             className={`message-row ${msg.role === "user" ? "user-row" : "agent-row"}`}
           >
-            {/* Avatar */}
             {msg.role === "agent" && (
               <div className="avatar agent-avatar small">
                 <Bot size={14} />
               </div>
             )}
 
-            {/* Message bubble */}
-            <div className={`bubble ${msg.role === "user" ? "user-bubble" : "agent-bubble"}`}>
-              {msg.text}
+            <div className="bubble-wrapper">
+              <div className={`bubble ${msg.role === "user" ? "user-bubble" : "agent-bubble"}`}>
+                {msg.text}
+              </div>
+
+              {/* Tool badges — shown under agent messages */}
+              {msg.role === "agent" && msg.tools_used && msg.tools_used.length > 0 && (
+                <div className="tool-badges">
+                  {msg.tools_used.map((tool, i) => (
+                    <span key={i} className="tool-badge">
+                      {TOOL_LABELS[tool]?.emoji} {TOOL_LABELS[tool]?.label}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* User avatar on right */}
             {msg.role === "user" && (
               <div className="avatar user-avatar small">
                 <User size={14} />
@@ -135,7 +153,7 @@ export default function App() {
           </div>
         ))}
 
-        {/* Typing indicator — shown while agent is thinking */}
+        {/* Typing indicator */}
         {loading && (
           <div className="message-row agent-row">
             <div className="avatar agent-avatar small">
@@ -149,7 +167,21 @@ export default function App() {
           </div>
         )}
 
-        {/* Invisible div at bottom for auto-scroll */}
+        {/* Suggested questions */}
+        {showSuggestions && (
+          <div className="suggestions">
+            {SUGGESTED_QUESTIONS.map((q, i) => (
+              <button
+                key={i}
+                className="suggestion-chip"
+                onClick={() => sendMessage(q)}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -166,7 +198,7 @@ export default function App() {
         />
         <button
           className="send-btn"
-          onClick={sendMessage}
+          onClick={() => sendMessage()}
           disabled={loading || !input.trim()}
         >
           <Send size={18} />

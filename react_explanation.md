@@ -91,6 +91,7 @@ You always update state using the setter function, never directly:
 // Wrong — React won't notice
 messages.push({...})
 
+
 // Correct — React re-renders when setMessages is called
 setMessages(prev => [...prev, newMessage])
 ```
@@ -114,6 +115,8 @@ Later in the JSX:
 ```
 
 This invisible div sits at the bottom of the chat. When we call `messagesEndRef.current.scrollIntoView()`, the browser scrolls to it.
+
+// the broser goes to the last after this
 
 ---
 
