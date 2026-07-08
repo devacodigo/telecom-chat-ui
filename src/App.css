@@ -11,13 +11,15 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 /* Main chat container */
 .app {
   width: 420px;
-  height: 700px;
+  height: min(700px, calc(100vh - 40px));
   background: white;
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.12);
